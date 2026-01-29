@@ -116,7 +116,12 @@ func NewModel(
 //
 // Implements tea.Model.Init.
 func (m *Model) Init() tea.Cmd {
-	source := InitializeLevelDBHistorySource(m.runPath, m.logger)
+	var source tea.Cmd
+	if strings.HasPrefix(m.runPath, "wandb://") {
+		source = InitializeParquetHistorySource(m.runPath, m.logger)
+	} else {
+		source = InitializeLevelDBHistorySource(m.runPath, m.logger)
+	}
 
 	m.logger.Debug("model: Init called")
 	return tea.Batch(
@@ -125,6 +130,7 @@ func (m *Model) Init() tea.Cmd {
 		m.watcherMgr.WaitForMsg,
 	)
 }
+
 
 // Update handles incoming events and updates the model accordingly.
 //

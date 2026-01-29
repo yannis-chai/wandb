@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -14,6 +13,7 @@ import (
 	"github.com/wandb/wandb/core/internal/observability"
 	spb "github.com/wandb/wandb/core/pkg/service_go_proto"
 )
+
 
 type LevelDBHistorySource struct {
 	// store is a W&B LevelDB-style transaction log that may be actively written.
@@ -57,7 +57,6 @@ func InitializeLevelDBHistorySource(
 		return InitMsg{Source: source}
 	}
 }
-
 // Read implements HistorySource.Read.
 func (s *LevelDBHistorySource) Read(
 	chunkSize int,
@@ -164,42 +163,6 @@ func (s *LevelDBHistorySource) Close() {
 	if s.store != nil {
 		s.store.Close()
 	}
-}
-
-// concatenateHistory merges a slice of HistoryMsg into a single HistoryMsg.
-//
-// Assumes that the history messages are ordered.
-func concatenateHistory(messages []HistoryMsg) HistoryMsg {
-	h := HistoryMsg{
-		Metrics: make(map[string]MetricData),
-	}
-
-	for _, msg := range messages {
-		for metricName, data := range msg.Metrics {
-			existing := h.Metrics[metricName]
-			h.Metrics[metricName] = MetricData{
-				X: slices.Concat(existing.X, data.X),
-				Y: slices.Concat(existing.Y, data.Y),
-			}
-		}
-	}
-
-	return h
-}
-
-// concatenateSummary merges a slice of SummaryMsg into a single SummaryMsg.
-//
-// Assumes that the summary messages are ordered.
-func concatenateSummary(messages []SummaryMsg) SummaryMsg {
-	s := SummaryMsg{
-		Summary: make([]*spb.SummaryRecord, 0),
-	}
-
-	for _, msg := range messages {
-		s.Summary = append(s.Summary, msg.Summary...)
-	}
-
-	return s
 }
 
 // ParseHistory extracts metrics from a history record.

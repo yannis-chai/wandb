@@ -3,9 +3,11 @@ package leet
 import (
 	"errors"
 	"io"
+	"slices"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	spb "github.com/wandb/wandb/core/pkg/service_go_proto"
 )
 
 const (
@@ -22,6 +24,8 @@ const (
 //
 // Implementations:
 //   - LevelDBHistorySource: Reads from a LevelDB-style .wandb transaction log
+//   - ParquetHistorySource: Reads from a run's exported parquet history files.
+//     - The files are downloaded from the W&B backend.
 //
 // The Read method returns a ChunkedBatchMsg containing processed records,
 // and may return io.EOF when the stream is complete.
@@ -70,4 +74,40 @@ func ReadAvailableRecords(source HistorySource) tea.Cmd {
 		}
 		return msgs
 	}
+}
+
+// concatenateHistory merges a slice of HistoryMsg into a single HistoryMsg.
+//
+// Assumes that the history messages are ordered.
+func concatenateHistory(messages []HistoryMsg) HistoryMsg {
+	h := HistoryMsg{
+		Metrics: make(map[string]MetricData),
+	}
+
+	for _, msg := range messages {
+		for metricName, data := range msg.Metrics {
+			existing := h.Metrics[metricName]
+			h.Metrics[metricName] = MetricData{
+				X: slices.Concat(existing.X, data.X),
+				Y: slices.Concat(existing.Y, data.Y),
+			}
+		}
+	}
+
+	return h
+}
+
+// concatenateSummary merges a slice of SummaryMsg into a single SummaryMsg.
+//
+// Assumes that the summary messages are ordered.
+func concatenateSummary(messages []SummaryMsg) SummaryMsg {
+	s := SummaryMsg{
+		Summary: make([]*spb.SummaryRecord, 0),
+	}
+
+	for _, msg := range messages {
+		s.Summary = append(s.Summary, msg.Summary...)
+	}
+
+	return s
 }

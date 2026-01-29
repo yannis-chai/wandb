@@ -33,6 +33,8 @@ def _wandb_file_path(path: str | None) -> str:
         wandb_dir = wandb_setup.singleton().settings.wandb_dir
 
         wandb_run_path = (pathlib.Path(wandb_dir) / "latest-run").resolve()
+    elif path.startswith("wandb://"):
+        return path
     else:
         wandb_run_path = pathlib.Path(path).resolve()
 
