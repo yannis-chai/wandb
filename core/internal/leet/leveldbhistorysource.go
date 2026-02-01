@@ -14,7 +14,6 @@ import (
 	spb "github.com/wandb/wandb/core/pkg/service_go_proto"
 )
 
-
 type LevelDBHistorySource struct {
 	// store is a W&B LevelDB-style transaction log that may be actively written.
 	store *LiveStore
@@ -57,6 +56,7 @@ func InitializeLevelDBHistorySource(
 		return InitMsg{Source: source}
 	}
 }
+
 // Read implements HistorySource.Read.
 func (s *LevelDBHistorySource) Read(
 	chunkSize int,

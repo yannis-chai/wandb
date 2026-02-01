@@ -87,6 +87,11 @@ func mockGraphQLWithParquetUrls(urls []string) *gqlmock.MockClient {
 func TestHistoryReader_GetHistorySteps_WithoutKeys(t *testing.T) {
 	ctx := t.Context()
 	tempDir := t.TempDir()
+
+	// Ensure we use a clean cache directory for this test
+	os.Setenv("WANDB_CACHE_DIR", tempDir)
+	defer os.Unsetenv("WANDB_CACHE_DIR")
+
 	schema := arrow.NewSchema(
 		[]arrow.Field{
 			{Name: "_step", Type: arrow.PrimitiveTypes.Int64},
@@ -145,8 +150,6 @@ func TestHistoryReader_GetHistorySteps_WithoutKeys(t *testing.T) {
 func TestHistoryReader_GetHistorySteps_MultipleFiles(t *testing.T) {
 	ctx := t.Context()
 	tempDir := t.TempDir()
-
-	// Ensure we use a clean cache directory for this test
 	os.Setenv("WANDB_CACHE_DIR", tempDir)
 	defer os.Unsetenv("WANDB_CACHE_DIR")
 
@@ -217,6 +220,9 @@ func TestHistoryReader_GetHistorySteps_MultipleFiles(t *testing.T) {
 func TestHistoryReader_GetHistorySteps_WithKeys(t *testing.T) {
 	ctx := t.Context()
 	tempDir := t.TempDir()
+	os.Setenv("WANDB_CACHE_DIR", tempDir)
+	defer os.Unsetenv("WANDB_CACHE_DIR")
+
 	schema := arrow.NewSchema(
 		[]arrow.Field{
 			{Name: "_step", Type: arrow.PrimitiveTypes.Int64},

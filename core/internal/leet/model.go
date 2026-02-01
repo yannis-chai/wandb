@@ -131,7 +131,6 @@ func (m *Model) Init() tea.Cmd {
 	)
 }
 
-
 // Update handles incoming events and updates the model accordingly.
 //
 // Implements tea.Model.Update.
