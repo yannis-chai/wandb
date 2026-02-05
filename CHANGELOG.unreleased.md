@@ -12,3 +12,7 @@ Add here any changes made in a PR that are relevant to end users. Allowed sectio
 Section headings should be at level 3 (e.g. `### Added`).
 
 ## Unreleased
+
+### Changed
+
+- The `wandb-summary.json`, `wandb-metadata.json`, `output.log` and `config.yaml` files are now generated even in offline mode (@timoffex in https://github.com/wandb/wandb/pull/11279)
