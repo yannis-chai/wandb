@@ -234,3 +234,94 @@ def test_log_nested_visualize(user, wandb_backend_spy):
         ]:
             table = get_table_from_summary(run, summary, key_path)
             assert table == visualize.table
+
+
+@pytest.mark.parametrize(
+    "plot_object",
+    [
+        "line_series",
+        "roc_curve",
+        "confusion_matrix",
+        "bar_chart",
+        "histogram",
+        "line_chart",
+        "pr_curve",
+        "scatter_plot",
+    ],
+)
+def test_log_chart_tables_false_suppresses_table(
+    user, request, wandb_backend_spy, plot_object
+):
+    """When log_chart_tables=False, the underlying table should NOT appear in
+    the run summary/history, but the chart visualization config should still be
+    recorded."""
+    plot = request.getfixturevalue(plot_object)
+    with wandb.init(settings=wandb.Settings(log_chart_tables=False)) as run:
+        run.log({"my_chart": plot})
+
+    with wandb_backend_spy.freeze() as snapshot:
+        summary = snapshot.summary(run_id=run.id)
+        config = snapshot.config(run_id=run.id)
+
+        # The chart visualization config should still be present.
+        assert "my_chart" in config["_wandb"]["value"]["visualize"]
+
+        # The underlying table should NOT be in the summary.
+        assert "my_chart_table" not in summary
+
+
+def test_log_chart_tables_true_logs_table_by_default(user, wandb_backend_spy):
+    """Default behaviour (log_chart_tables=True): the underlying table should
+    appear in the run summary alongside the chart config."""
+    plot = wandb.plot.bar(
+        table=wandb.Table(columns=["label", "val"], data=[["a", 1]]),
+        label="label",
+        value="val",
+    )
+    with wandb.init() as run:
+        run.log({"my_chart": plot})
+
+    with wandb_backend_spy.freeze() as snapshot:
+        summary = snapshot.summary(run_id=run.id)
+        config = snapshot.config(run_id=run.id)
+
+        # Both the chart config and the table should be present.
+        assert "my_chart" in config["_wandb"]["value"]["visualize"]
+        assert "my_chart_table" in summary
+
+
+def test_log_chart_tables_false_with_nested_plots(user, wandb_backend_spy):
+    """When log_chart_tables=False and plots are nested in dicts, table
+    entries should be suppressed while chart configs are still recorded."""
+    plot1 = wandb.plot.bar(
+        table=wandb.Table(columns=["a"], data=[[1]]),
+        label="a",
+        value="a",
+    )
+    plot2 = wandb.plot.bar(
+        table=wandb.Table(columns=["b"], data=[[2]]),
+        label="b",
+        value="b",
+    )
+    with wandb.init(settings=wandb.Settings(log_chart_tables=False)) as run:
+        run.log(
+            {
+                "section": {
+                    "inner": {"chart1": plot1},
+                    "chart2": plot2,
+                }
+            }
+        )
+
+    with wandb_backend_spy.freeze() as snapshot:
+        summary = snapshot.summary(run_id=run.id)
+        config = snapshot.config(run_id=run.id)
+
+        # Chart visualization configs should be present.
+        viz = config["_wandb"]["value"]["visualize"]
+        assert "section.inner.chart1" in viz
+        assert "section.chart2" in viz
+
+        # Tables should NOT be logged.
+        assert "section.inner.chart1_table" not in summary
+        assert "section.chart2_table" not in summary

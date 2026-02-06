@@ -1537,6 +1537,12 @@ class Run:
         in the given dictionary (which is saved to the run's history) and adding them
         to the run's config.
 
+        When the ``log_chart_tables`` setting is ``False``, the underlying
+        tables of ``CustomChart`` objects are **not** added to the history
+        data dictionary.  This prevents the table from appearing as a
+        separate panel on the W&B dashboard while still registering the
+        chart visualisation in the run config.
+
         Args:
             data: Dictionary containing data that may include plot objects
                 Plot objects can be nested in dictionaries, which will be processed recursively.
@@ -1547,6 +1553,8 @@ class Run:
         if not data:
             return data
 
+        log_chart_tables = self._settings.log_chart_tables
+
         charts = self._pop_all_charts(data)
         for k, v in charts.items():
             v.set_key(k)
@@ -1556,7 +1564,8 @@ class Run:
             )
 
             if isinstance(v, CustomChart):
-                data[v.spec.table_key] = v.table
+                if log_chart_tables:
+                    data[v.spec.table_key] = v.table
             elif isinstance(v, Visualize):
                 data[k] = v.table
 
