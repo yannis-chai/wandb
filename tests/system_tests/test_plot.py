@@ -249,12 +249,13 @@ def test_log_nested_visualize(user, wandb_backend_spy):
         "scatter_plot",
     ],
 )
-def test_log_chart_tables_false_suppresses_table(
+def test_log_chart_tables_false_moves_table_to_separate_section(
     user, request, wandb_backend_spy, plot_object
 ):
-    """When log_chart_tables=False, the underlying table should NOT appear in
-    the run summary/history, but the chart visualization config should still be
-    recorded."""
+    """When log_chart_tables=False, the underlying table should be moved to the
+    'Custom Chart Tables/' section instead of appearing next to the chart.
+    The chart visualization config should still be recorded and should reference
+    the relocated table."""
     plot = request.getfixturevalue(plot_object)
     with wandb.init(settings=wandb.Settings(log_chart_tables=False)) as run:
         run.log({"my_chart": plot})
@@ -266,8 +267,25 @@ def test_log_chart_tables_false_suppresses_table(
         # The chart visualization config should still be present.
         assert "my_chart" in config["_wandb"]["value"]["visualize"]
 
-        # The underlying table should NOT be in the summary.
+        # The table should NOT be in the default location.
         assert "my_chart_table" not in summary
+
+        # The table should be in the "Custom Chart Tables/" section.
+        assert "Custom Chart Tables/my_chart_table" in summary
+
+        # The chart config should reference the relocated table key.
+        viz_config = config["_wandb"]["value"]["visualize"]["my_chart"]
+        panel_config = viz_config["panel_config"]
+        query_fields = panel_config["userQuery"]["queryFields"][0]["fields"]
+        summary_table_args = query_fields[-1]["args"]
+        table_key = summary_table_args[0]["value"]
+        assert table_key == "Custom Chart Tables/my_chart_table"
+
+        # Verify the table data matches.
+        table = get_table_from_summary(
+            run, summary, ["Custom Chart Tables/my_chart_table"]
+        )
+        assert table == plot.table
 
 
 def test_log_chart_tables_true_logs_table_by_default(user, wandb_backend_spy):
@@ -289,10 +307,14 @@ def test_log_chart_tables_true_logs_table_by_default(user, wandb_backend_spy):
         assert "my_chart" in config["_wandb"]["value"]["visualize"]
         assert "my_chart_table" in summary
 
+        # The table should NOT be in the "Custom Chart Tables/" section.
+        assert "Custom Chart Tables/my_chart_table" not in summary
+
 
 def test_log_chart_tables_false_with_nested_plots(user, wandb_backend_spy):
     """When log_chart_tables=False and plots are nested in dicts, table
-    entries should be suppressed while chart configs are still recorded."""
+    entries should be moved to the 'Custom Chart Tables/' section while
+    chart configs are still recorded normally."""
     plot1 = wandb.plot.bar(
         table=wandb.Table(columns=["a"], data=[[1]]),
         label="a",
@@ -322,6 +344,33 @@ def test_log_chart_tables_false_with_nested_plots(user, wandb_backend_spy):
         assert "section.inner.chart1" in viz
         assert "section.chart2" in viz
 
-        # Tables should NOT be logged.
+        # Tables should NOT be in the default location.
         assert "section.inner.chart1_table" not in summary
         assert "section.chart2_table" not in summary
+
+        # Tables should be in the "Custom Chart Tables/" section.
+        assert "Custom Chart Tables/section.inner.chart1_table" in summary
+        assert "Custom Chart Tables/section.chart2_table" in summary
+
+
+def test_log_chart_tables_false_does_not_override_explicit_split_table(
+    user, wandb_backend_spy
+):
+    """When a chart already has split_table=True, log_chart_tables=False should
+    still work correctly (the table stays in 'Custom Chart Tables/')."""
+    plot = wandb.plot.bar(
+        table=wandb.Table(columns=["a"], data=[[1]]),
+        label="a",
+        value="a",
+        split_table=True,  # already split
+    )
+    with wandb.init(settings=wandb.Settings(log_chart_tables=False)) as run:
+        run.log({"my_chart": plot})
+
+    with wandb_backend_spy.freeze() as snapshot:
+        summary = snapshot.summary(run_id=run.id)
+        config = snapshot.config(run_id=run.id)
+
+        assert "my_chart" in config["_wandb"]["value"]["visualize"]
+        assert "Custom Chart Tables/my_chart_table" in summary
+        assert "my_chart_table" not in summary

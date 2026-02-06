@@ -279,20 +279,18 @@ class Settings(BaseModel, validate_assignment=True):
     """Path to the launch configuration file."""
 
     log_chart_tables: bool = True
-    """Whether to log the underlying tables of custom charts to the run history.
+    """Whether to log custom-chart tables in the same section as the chart.
 
     When `True` (default), calling `wandb.log()` with a `wandb.plot` chart
-    (e.g. `wandb.plot.bar(...)`) will log both the chart visualization and
-    the underlying `wandb.Table` as separate entries in the run history.
-    This causes both a chart panel and a table panel to appear in the W&B
+    (e.g. `wandb.plot.bar(...)`) will log the underlying `wandb.Table` as a
+    separate entry next to the chart in the run history. This causes both a
+    chart panel and a table panel to appear in the same section of the W&B
     dashboard.
 
-    Set to `False` to suppress logging the underlying table, so that only the
-    chart visualization panel is displayed. This reduces clutter on the W&B
-    dashboard when tables are only used as intermediate data sources for charts.
-
-    Note: when set to `False`, the chart panel on the W&B dashboard may not
-    display the underlying data table as a separate panel.
+    Set to `False` to move the underlying table into a dedicated
+    "Custom Chart Tables" section instead. The chart visualization will
+    continue to render correctly because the table is still logged, but it
+    will no longer clutter the main dashboard section next to the chart.
     """
 
     login_timeout: Optional[float] = None
