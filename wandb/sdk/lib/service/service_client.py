@@ -15,6 +15,17 @@ _HEADER_BYTE_INT_LEN = 5
 _HEADER_BYTE_INT_FMT = "<BI"
 
 
+class BrokenClientError(Exception):
+    """The socket broke and cannot be used.
+
+    After a socket operation raises an exception, calls to ServiceClient methods
+    raise this exception immediately. This is necessary because asyncio's
+    StreamReader and StreamWriter store and re-raise an exception, which
+    results in huge, repetitive tracebacks. See
+    https://bugs.python.org/issue45924.
+    """
+
+
 class ServiceClient:
     """Implements socket communication with the internal service."""
 
@@ -24,6 +35,8 @@ class ServiceClient:
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
     ) -> None:
+        self._broken = False
+
         self._reader = reader
         self._writer = writer
         self._mailbox = Mailbox(asyncer, self._cancel_request)
@@ -55,13 +68,20 @@ class ServiceClient:
         return handle
 
     async def _send_server_request(self, request: spb.ServerRequest) -> None:
+        if self._broken:
+            raise BrokenClientError
+
         header = struct.pack(_HEADER_BYTE_INT_FMT, ord("W"), request.ByteSize())
         self._writer.write(header)
 
         data = request.SerializeToString()
         self._writer.write(data)
 
-        await self._writer.drain()
+        try:
+            await self._writer.drain()
+        except:
+            self._broken = True
+            raise
 
     async def _cancel_request(self, id: str, /) -> None:
         """Cancel a request by ID.
